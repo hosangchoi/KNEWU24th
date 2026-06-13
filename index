@@ -113,7 +113,7 @@ footer{text-align:center;padding:0 0 26px;font-size:11px;color:rgba(245,242,234,
 <body>
 
 <div id="splash">
-  <div class="sp-logo">⚡</div>
+  <div class="sp-logo"><img src="https://knewu.netlify.app/icon-192.png" style="width:76px;height:76px;border-radius:18px;object-fit:contain"></div>
   <div class="sp-org">전국전력노동조합</div>
   <div class="sp-title">노사합동 봉사활동</div>
   <div class="sp-slogan">"우리에게 이로움, 함께하는 새로움"</div>
@@ -123,6 +123,7 @@ footer{text-align:center;padding:0 0 26px;font-size:11px;color:rgba(245,242,234,
 <div id="app">
   <header>
     <div class="h-title-wrap">
+      <img src="https://knewu.netlify.app/icon-192.png" style="width:16px;height:16px;border-radius:3px;object-fit:contain">
       <div class="h-title"><small>전국전력노동조합</small>노사합동 봉사활동</div>
     </div>
     <div class="h-me" id="meChip" style="display:none"></div>
