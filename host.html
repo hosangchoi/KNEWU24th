@@ -385,11 +385,12 @@ window.selectBossRSP = function(v){
 
 // ── 전체 초기화 ──
 window.resetAll = async function(){
-  if(!confirm('전체 초기화할까요? 참가자 명단·진행 상태 전부 삭제됩니다.')) return;
+  if(!confirm('전체 초기화할까요? 참가자 명단·진행 상태 전부 삭제됩니다.\n※ 등록된 문제(OX·근사치)는 유지됩니다.')) return;
   if(!confirm('한 번 더 확인합니다 — 초기화 실행?')) return;
-  await dbSet('/',null);
-  await dbSet('state',defaultState());
-  toast('전체 초기화 완료');
+  await dbSet('state', defaultState());
+  await dbSet('roster', null);
+  await dbSet('subs', null);
+  toast('전체 초기화 완료 (문제은행은 유지됨)');
 };
 
 // ── 페인트 ──
