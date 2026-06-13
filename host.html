@@ -105,6 +105,8 @@ const HOST_KEY = '7942'; // ← 원하는 4자리로 변경 가능
 const GN = {1:'동료 이름 빨리 쓰기',2:'가위바위보 서바이벌',3:'근사치 퀴즈',4:'중복되지 않는 제일 작은 숫자 선택하기',5:'OX 서바이벌'};
 
 let ST = null, currentBossSel = '', g3Scores = {}, g4Scores = {};
+let BANK = {ox:[], approx:[]};   // 문제은행 (Firebase 동기화)
+let showBank = false;            // 문제 관리 패널 열림 여부
 
 // ── 유틸 ──
 function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -136,6 +138,11 @@ function startConsole(){
   onValue(ref(db,'roster'), snap=>{
     const r=snap.val()||{};
     document.getElementById('cnt').textContent=Object.keys(r).length+'명';
+  });
+  onValue(ref(db,'bank'), snap=>{
+    const b=snap.val()||{};
+    BANK={ox:b.ox||[], approx:b.approx||[]};
+    paint();
   });
 }
 
@@ -177,10 +184,17 @@ window.openQ = async function(advance){
   else if(s.gameId===2) s.qText='가위바위보 서바이벌 - 제 '+(s.qIndex+1)+'라운드! 수석님을 이길 선택은?';
   else if(s.gameId===4) s.qText='제 '+(s.qIndex+1)+'판! 1~100 중 아무와도 겹치지 않는 가장 작은 수를 고르세요.';
   else {
-    // 근사치/OX 문제는 사회자가 직접 입력
+    // 근사치/OX 문제: 입력칸 값 사용
     const qInput=document.getElementById('qInput');
     if(qInput&&qInput.value.trim()) s.qText=qInput.value.trim();
     else { toast('문제 텍스트를 입력해 주세요'); return; }
+    // picker로 정답이 함께 정해졌으면 state에 저장 (마감 시 자동 사용)
+    if(window._pickedAnswer!=null && String(window._pickedAnswer)!==''){
+      s.preAnswer=String(window._pickedAnswer);
+    } else {
+      s.preAnswer=null;
+    }
+    window._pickedAnswer=null;
   }
   await saveState(s);
   toast('문제 열기 완료');
@@ -218,7 +232,8 @@ window.closeQ = async function(){
   }
   else if(s.gameId===3){
     const answerEl=document.getElementById('answerInput');
-    const truth=parseFloat(answerEl?answerEl.value:'');
+    let raw = (answerEl&&answerEl.value.trim()) ? answerEl.value : (s.preAnswer!=null?s.preAnswer:'');
+    const truth=parseFloat(raw);
     if(isNaN(truth)){ toast('정답을 입력해 주세요'); return; }
     const arr=Object.values(subs).map(x=>({name:x.name,v:x.ans,rate:Math.abs(x.ans-truth)/Math.max(1,Math.abs(truth))}));
     arr.sort((a,b)=>a.rate-b.rate);
@@ -242,7 +257,8 @@ window.closeQ = async function(){
   }
   else if(s.gameId===5){
     const answerEl=document.getElementById('answerInput');
-    const truth=(answerEl?answerEl.value:'').toUpperCase()==='X'?'X':'O';
+    let raw = (answerEl&&answerEl.value.trim()) ? answerEl.value : (s.preAnswer!=null?s.preAnswer:'');
+    const truth=String(raw).toUpperCase()==='X'?'X':'O';
     const surv=s.survivors||[];
     let alive=[],dead=[];
     surv.forEach(nm=>{
@@ -295,6 +311,55 @@ window.winner = async function(name){
   toast('🏆 '+name+' 우승 확정!');
 };
 
+// ── 문제은행 관리 ──
+window.toggleBank = function(){ showBank=!showBank; paint(); };
+
+window.addOX = async function(){
+  const qEl=document.getElementById('bankOXq');
+  const aEl=document.getElementById('bankOXa');
+  const q=(qEl?qEl.value:'').trim();
+  const a=(aEl?aEl.value:'').toUpperCase();
+  if(!q){ toast('문제를 입력해 주세요'); return; }
+  if(a!=='O'&&a!=='X'){ toast('정답은 O 또는 X'); return; }
+  const list=[...BANK.ox, {q, a}];
+  await dbSet('bank/ox', list);
+  toast('OX 문제 저장됨');
+};
+
+window.addApprox = async function(){
+  const qEl=document.getElementById('bankAPq');
+  const aEl=document.getElementById('bankAPa');
+  const q=(qEl?qEl.value:'').trim();
+  const a=parseFloat((aEl?aEl.value:'').replace(/[^\d.\-]/g,''));
+  if(!q){ toast('문제를 입력해 주세요'); return; }
+  if(isNaN(a)){ toast('정답 숫자를 입력해 주세요'); return; }
+  const list=[...BANK.approx, {q, a}];
+  await dbSet('bank/approx', list);
+  toast('근사치 문제 저장됨');
+};
+
+window.delBank = async function(type, idx){
+  if(!confirm('이 문제를 삭제할까요?')) return;
+  const key = type==='ox'?'ox':'approx';
+  const list = (BANK[key]||[]).filter((_,i)=>i!==idx);
+  await dbSet('bank/'+key, list);
+  toast('삭제됨');
+};
+
+// 저장된 문제를 진행 입력칸에 채우기
+window.pickBank = function(type, idx){
+  const item = (type==='ox'?BANK.ox:BANK.approx)[idx];
+  if(!item) return;
+  const qEl=document.getElementById('qInput');
+  const aEl=document.getElementById('answerInput');
+  if(qEl) qEl.value=item.q;
+  if(aEl) aEl.value=item.a;
+  // 정답 입력칸이 화면에 아직 없으면 임시 저장해뒀다가 마감 때 사용
+  window._pickedAnswer = item.a;
+  toast('문제 불러옴: '+item.q.slice(0,16)+(item.q.length>16?'…':''));
+};
+
+
 // ── 로비 ──
 window.toLobby = async function(){
   const s={...defaultState(),winners:ST&&ST.winners||[],banner:ST&&ST.banner||null};
@@ -328,6 +393,18 @@ window.resetAll = async function(){
 };
 
 // ── 페인트 ──
+// 진행 중 "저장된 문제 불러오기" 칩 목록 HTML
+function bankPicker(type){
+  const list = type==='ox'?BANK.ox:BANK.approx;
+  if(!list||!list.length) return '';
+  let h='<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--gold);font-weight:800;margin-bottom:6px">📌 등록된 문제 (탭하면 입력칸에 채워집니다)</div><div style="display:flex;flex-direction:column;gap:6px">';
+  list.forEach((it,i)=>{
+    h+='<button onclick="pickBank(\''+type+'\','+i+')" style="text-align:left;background:rgba(245,242,234,.08);border:1px solid rgba(245,242,234,.15);border-radius:8px;padding:9px 11px;color:var(--ivory);font-size:13px;font-weight:600">'+esc(it.q)+' <b style="color:var(--gold)">('+esc(it.a)+')</b></button>';
+  });
+  h+='</div></div>';
+  return h;
+}
+
 function paint(){
   const s=ST||defaultState();
   const turnLabel=s.gameId===2?'제 '+(s.qIndex+1)+'라운드':(s.qTotal>1?'판 '+(s.qIndex+1)+'/'+s.qTotal:'');
@@ -350,6 +427,37 @@ function paint(){
   }
   h+='</div>';
 
+  // 문제 관리 섹션
+  h+='<div class="sec"><h3 style="display:flex;justify-content:space-between;align-items:center">'+
+     '<span>📝 문제 미리 등록 (OX · 근사치)</span>'+
+     '<button onclick="toggleBank()" style="background:rgba(242,180,68,.2);color:var(--gold);font-size:11px;font-weight:800;padding:5px 10px;border-radius:8px">'+(showBank?'닫기 ▲':'열기 ▼')+'</button></h3>';
+  if(showBank){
+    h+='<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:800;color:var(--ivory);margin-bottom:6px">OX 문제 추가</div>'+
+       '<input id="bankOXq" placeholder="문제 텍스트" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(245,242,234,.2);background:rgba(245,242,234,.1);color:var(--ivory);font-size:14px;font-family:inherit;margin-bottom:6px">'+
+       '<div style="display:flex;gap:8px"><input id="bankOXa" placeholder="정답 O/X" maxlength="1" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(245,242,234,.2);background:rgba(245,242,234,.1);color:var(--ivory);font-size:14px;font-family:inherit;text-transform:uppercase">'+
+       '<button onclick="addOX()" style="flex:1;background:var(--accent);color:#fff;border-radius:8px;font-weight:800;font-size:14px">+ 저장</button></div></div>';
+    if((BANK.ox||[]).length){
+      h+='<div style="margin-bottom:14px">';
+      BANK.ox.forEach((it,i)=>{
+        h+='<div class="lrow"><div class="n">'+esc(it.q)+' <b style="color:var(--gold)">('+esc(it.a)+')</b></div>'+
+           '<button onclick="delBank(\'ox\','+i+')" style="background:transparent;color:#f08f6e;font-size:12px;font-weight:800">삭제</button></div>';
+      });
+      h+='</div>';
+    }
+    h+='<div style="border-top:1px solid rgba(245,242,234,.12);padding-top:12px;margin-bottom:6px"><div style="font-size:12px;font-weight:800;color:var(--ivory);margin-bottom:6px">근사치 문제 추가</div>'+
+       '<input id="bankAPq" placeholder="문제 텍스트" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(245,242,234,.2);background:rgba(245,242,234,.1);color:var(--ivory);font-size:14px;font-family:inherit;margin-bottom:6px">'+
+       '<div style="display:flex;gap:8px"><input id="bankAPa" placeholder="정답 숫자" inputmode="decimal" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(245,242,234,.2);background:rgba(245,242,234,.1);color:var(--ivory);font-size:14px;font-family:inherit">'+
+       '<button onclick="addApprox()" style="flex:1;background:var(--accent);color:#fff;border-radius:8px;font-weight:800;font-size:14px">+ 저장</button></div></div>';
+    if((BANK.approx||[]).length){
+      BANK.approx.forEach((it,i)=>{
+        h+='<div class="lrow"><div class="n">'+esc(it.q)+' <b style="color:var(--gold)">('+esc(it.a)+')</b></div>'+
+           '<button onclick="delBank(\'approx\','+i+')" style="background:transparent;color:#f08f6e;font-size:12px;font-weight:800">삭제</button></div>';
+      });
+    }
+    h+='<div class="hint">여기 등록해두면 게임 진행 중 한 번 탭으로 불러올 수 있어요.</div>';
+  }
+  h+='</div>';
+
   if(s.phase==='game'){
     h+='<div class="sec"><h3>현재 게임 제어: G'+s.gameId+' · '+GN[s.gameId]+'</h3>';
     if(s.qText) h+='<div class="qprev">'+esc(s.qText)+'</div>';
@@ -357,6 +465,7 @@ function paint(){
     if(s.status==='intro'){
       // 근사치/OX는 문제 텍스트 입력 필드 표시
       if(s.gameId===3||s.gameId===5){
+        h+=bankPicker(s.gameId===3?'approx':'ox');
         h+=`<div class="q-input-box"><label>문제 텍스트 입력</label>
           <input id="qInput" placeholder="${s.gameId===3?'근사치 문제를 입력하세요':'OX 문제를 입력하세요'}"></div>`;
       }
@@ -375,8 +484,9 @@ function paint(){
       }
       // 근사치/OX 정답 입력
       if(s.gameId===3||s.gameId===5){
-        h+=`<div class="q-input-box"><label>${s.gameId===3?'정답 숫자 입력':'정답 (O 또는 X) 입력'}</label>
-          <input id="answerInput" placeholder="${s.gameId===3?'숫자 입력':'O 또는 X'}"></div>`;
+        if(!s.preAnswer) h+=bankPicker(s.gameId===3?'approx':'ox');
+        h+=`<div class="q-input-box"><label>${s.gameId===3?'정답 숫자 입력':'정답 (O 또는 X) 입력'}${s.preAnswer?' — 등록 정답 ('+esc(s.preAnswer)+') 자동 적용됨':''}</label>
+          <input id="answerInput" placeholder="${s.preAnswer?'비워두면 등록 정답 사용':(s.gameId===3?'숫자 입력':'O 또는 X')}"></div>`;
       }
       // 다음 판 문제 입력(근사치/OX)
       if((s.gameId===3||s.gameId===5)&&s.qIndex+1<s.qTotal){
@@ -401,8 +511,11 @@ function paint(){
         // 서바이벌: 최후 1인이 아니면 다음 라운드 / 여기서 종료 선택
         if(!r.final){
           if(s.gameId===5){
+            h+=bankPicker('ox');
             h+=`<div class="q-input-box" style="margin-top:12px"><label>다음 문제 입력</label>
-              <input id="qInput" placeholder="다음 OX 문제 텍스트"></div>`;
+              <input id="qInput" placeholder="다음 OX 문제 텍스트"></div>
+              <div class="q-input-box"><label>다음 문제 정답 (O/X)</label>
+              <input id="answerInput" placeholder="O 또는 X (등록 문제 선택 시 자동)"></div>`;
           }
           h+=`<button class="act" onclick="openQ(true)">▶ 다음 라운드 (${s.qIndex+2})</button>`;
           h+=`<button class="act gold" onclick="finishGame()">🏁 여기서 종료 — 생존자 시상</button>`;
@@ -412,8 +525,11 @@ function paint(){
         // G3/G4: 3판 누적
         if(s.qIndex+1<s.qTotal){
           if(s.gameId===3){
+            h+=bankPicker('approx');
             h+=`<div class="q-input-box" style="margin-top:12px"><label>다음 문제 입력</label>
-              <input id="qInput" placeholder="다음 근사치 문제 텍스트"></div>`;
+              <input id="qInput" placeholder="다음 근사치 문제 텍스트"></div>
+              <div class="q-input-box"><label>다음 문제 정답 (숫자)</label>
+              <input id="answerInput" placeholder="숫자 (등록 문제 선택 시 자동)"></div>`;
           }
           h+=`<button class="act" onclick="openQ(true)">▶ 다음 판 (${s.qIndex+2}/${s.qTotal})</button>`;
         } else if(!r.final){
