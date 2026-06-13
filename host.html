@@ -101,7 +101,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const HOST_KEY = 'kepco1357!';
+const HOST_KEY = 'knewu24th!@호상';
 const GN = {1:'동료 이름 빨리 쓰기',2:'가위바위보 서바이벌',3:'근사치 퀴즈',4:'중복되지 않는 제일 작은 숫자 선택하기',5:'OX 서바이벌'};
 
 let ST = null, currentBossSel = '', g3Scores = {}, g4Scores = {};
@@ -168,6 +168,8 @@ window.startG = async function(g){
   if(g===3||g===4) qTotal=3;
   const s=defaultState();
   s.phase='game'; s.gameId=g; s.status='intro'; s.qTotal=qTotal;
+  s.winners = (ST&&ST.winners)||[];   // 기존 우승자 유지
+  s.banner = (ST&&ST.banner)||null;   // 배너 상태 유지
   if(g===2||g===5) s.survivors=names;
   await dbSet('subs/g'+g,null); // 해당 게임 제출 초기화
   await saveState(s);
