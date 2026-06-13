@@ -101,7 +101,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const HOST_KEY = 'kepco1357!';
+const HOST_KEY = 'knewu24th!@호상';
 const GN = {1:'동료 이름 빨리 쓰기',2:'가위바위보 서바이벌',3:'근사치 퀴즈',4:'중복되지 않는 제일 작은 숫자 선택하기',5:'OX 서바이벌'};
 
 let ST = null, currentBossSel = '', g3Scores = {}, g4Scores = {};
@@ -208,7 +208,8 @@ window.closeQ = async function(){
 
   if(s.gameId===1){
     const list=Object.values(subs).sort((a,b)=>a.order-b.order);
-    result={title:GN[1]+' 결과',rows:list.map((x,i)=>({r:i+1,name:x.name,d:x.n+'명 · '+fmtSec(x.t-s.openedAt)})),note:'상위권 답안 확인 후 우승자를 확정하세요'};
+    const verify=list.slice(0,5).map((x,i)=>({rank:i+1,name:x.name,n:x.n,ans:x.ans||''}));
+    result={title:GN[1]+' 결과',rows:list.map((x,i)=>({r:i+1,name:x.name,d:x.n+'명 · '+fmtSec(x.t-s.openedAt)})),note:'상위 5명 답안을 검증한 뒤 이름을 눌러 우승 확정',verify};
   }
   else if(s.gameId===2){
     const boss=currentBossSel;
@@ -498,6 +499,17 @@ function paint(){
     }
     else if(s.status==='result'){
       const r=s.result||{};
+      // G1 답안 검증 피드 (상위 5명 원문)
+      if(r.verify && r.verify.length){
+        h+='<div style="background:rgba(242,180,68,.15);border:2px dashed var(--gold);border-radius:12px;padding:14px;margin-bottom:12px">';
+        h+='<div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">🔍 상위 5명 답안 검증 (오타 확인 후 우승 확정)</div>';
+        r.verify.forEach(v=>{
+          h+='<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(245,242,234,.12)">'+
+             '<div style="font-size:13px;font-weight:800;color:var(--ivory);margin-bottom:4px">'+v.rank+'위 · '+esc(v.name)+' <span style="color:var(--gold)">('+v.n+'명)</span></div>'+
+             '<div style="font-size:13px;line-height:1.6;color:#ffe3ae;word-break:break-all">'+esc(v.ans)+'</div></div>';
+        });
+        h+='</div>';
+      }
       h+='<div class="live">';
       (r.rows||[]).forEach(row=>{
         h+=`<div class="lrow tap" onclick="winner('${jsq(row.name)}')">
