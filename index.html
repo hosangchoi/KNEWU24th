@@ -113,7 +113,7 @@ footer{text-align:center;padding:0 0 26px;font-size:11px;color:rgba(245,242,234,
 <body>
 
 <div id="splash">
-  <div class="sp-logo"><img src="https://knewu.netlify.app/icon-192.png" style="width:76px;height:76px;border-radius:18px;object-fit:contain"></div>
+  <div class="sp-logo"><img src="https://knewu.netlify.app/icon-192.png" alt="로고" style="width:76px;height:76px;border-radius:18px;object-fit:contain" onerror="this.outerHTML='⚡'"></div>
   <div class="sp-org">전국전력노동조합</div>
   <div class="sp-title">노사합동 봉사활동</div>
   <div class="sp-slogan">"우리에게 이로움, 함께하는 새로움"</div>
@@ -123,7 +123,7 @@ footer{text-align:center;padding:0 0 26px;font-size:11px;color:rgba(245,242,234,
 <div id="app">
   <header>
     <div class="h-title-wrap">
-      <img src="https://knewu.netlify.app/icon-192.png" style="width:16px;height:16px;border-radius:3px;object-fit:contain">
+      <img src="https://knewu.netlify.app/icon-192.png" alt="로고" style="width:18px;height:18px;border-radius:4px;object-fit:contain" onerror="this.style.display='none'">
       <div class="h-title"><small>전국전력노동조합</small>노사합동 봉사활동</div>
     </div>
     <div class="h-me" id="meChip" style="display:none"></div>
@@ -142,7 +142,7 @@ footer{text-align:center;padding:0 0 26px;font-size:11px;color:rgba(245,242,234,
 
 <!-- Firebase SDK -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, push, update, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
@@ -156,7 +156,7 @@ const firebaseConfig = {
   appId: "1:617159229534:web:360195e7b3bc5a38b034cf"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ── 상수 ──
@@ -176,6 +176,7 @@ let ST = null;
 let lastBannerT = 0;
 let done = {};
 let unsubState = null;
+let rosterCount = 0;
 
 // ── 유틸 ──
 function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -223,13 +224,16 @@ function subscribeState(){
   unsubState = onValue(ref(db,'state'), snap=>{
     ST = snap.val();
     if(ST) onState();
+    else { ST=null; render(); }  // 게임 시작 전: 로비 화면
   });
   onValue(ref(db,'roster'), snap=>{
     const r = snap.val()||{};
-    const cnt = Object.keys(r).length;
+    rosterCount = Object.keys(r).length;
     const names = Object.values(r);
     const last = names.length ? names[names.length-1] : '';
-    document.getElementById('countTxt').textContent='참가 '+cnt+'명'+(last?' · 최근 입장: '+last:'');
+    document.getElementById('countTxt').textContent='참가 '+rosterCount+'명'+(last?' · 최근 입장: '+last:'');
+    // 로비 화면이면 인원수 갱신
+    if(ST && ST.phase!=='game' && ST.phase!=='final') render();
   });
 }
 
@@ -253,16 +257,17 @@ function onState(){
 // ── 렌더 ──
 function render(){
   const s=ST, m=document.getElementById('main');
-  if(!s||!MYNAME){ renderJoin(); return; }
-  if(s.phase==='final'){ m.innerHTML=renderFinal(s); return; }
-  if(s.phase!=='game'){
-    m.innerHTML=`<div class="waiting"><div class="big">${Object.keys(s.roster||{}).length||0}</div>
+  if(!MYNAME){ renderJoin(); return; }
+  // 입장은 했으나 게임 상태가 아직 없음(시작 전) → 로비 대기 화면
+  if(!s || (s.phase!=='game' && s.phase!=='final')){
+    m.innerHTML=`<div class="waiting"><div class="big">${rosterCount}</div>
       <div class="lbl">명 입장 완료 · 잠시 후 시작합니다</div></div>
       <div class="card"><div class="eyebrow">TONIGHT</div><h2>만찬 스페셜 게임</h2>
       <p class="desc" style="line-height:1.8;text-align:center;font-weight:700;margin-top:12px;color:var(--accent)">🎁 각 게임마다 푸짐한 우승 상품 대기 중!</p>
       <p class="desc" style="margin-top:12px;text-align:center">사회자 진행에 따라 화면이 자동 전환됩니다. 스마트폰 들고 대기해 주세요!</p></div>`;
     return;
   }
+  if(s.phase==='final'){ m.innerHTML=renderFinal(s); return; }
   if(s.status==='intro'){ m.innerHTML=renderIntro(s); return; }
   if(s.status==='open'){ m.innerHTML=renderOpen(s); return; }
   if(s.status==='closed'){
