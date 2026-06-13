@@ -101,7 +101,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const HOST_KEY = '12102399'; // ← 원하는 4자리로 변경 가능
+const HOST_KEY = 'kepco1357!'; // ← 원하는 숫자 변경 가능
 const GN = {1:'동료 이름 빨리 쓰기',2:'가위바위보 서바이벌',3:'근사치 퀴즈',4:'중복되지 않는 제일 작은 숫자 선택하기',5:'OX 서바이벌'};
 
 let ST = null, currentBossSel = '', g3Scores = {}, g4Scores = {};
