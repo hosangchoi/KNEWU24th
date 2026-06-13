@@ -62,7 +62,7 @@ main{max-width:480px;margin:0 auto;padding:6px 14px}
 <!-- 키 입력 화면 -->
 <div id="keyScreen" class="key-screen">
   <div class="key-card">
-    <h2>⚡ 사회자 입장</h2>
+    <h2><img src="https://knewu.netlify.app/icon-192.png" alt="로고" style="width:28px;height:28px;border-radius:6px;object-fit:contain;vertical-align:middle;margin-right:6px" onerror="this.outerHTML='⚡'">사회자 입장</h2>
     <p>사회자 키 4자리를 입력하세요</p>
     <input id="keyIn" type="number" inputmode="numeric" placeholder="0000" maxlength="4">
     <button onclick="checkKey()">입장</button>
@@ -73,7 +73,7 @@ main{max-width:480px;margin:0 auto;padding:6px 14px}
 <!-- 메인 콘솔 -->
 <div id="console" style="display:none">
 <header>
-  <div class="h-t">⚡ 사회자 콘솔</div>
+  <div class="h-t"><img src="https://knewu.netlify.app/icon-192.png" alt="로고" style="width:18px;height:18px;border-radius:4px;object-fit:contain;vertical-align:middle;margin-right:5px" onerror="this.outerHTML='⚡'">사회자 콘솔</div>
   <div class="badge" id="cnt">0명</div>
 </header>
 <div class="status" id="stLine">연결 중…</div>
@@ -84,7 +84,7 @@ main{max-width:480px;margin:0 auto;padding:6px 14px}
 
 <!-- Firebase SDK -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, update, remove }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
@@ -98,7 +98,7 @@ const firebaseConfig = {
   appId: "1:617159229534:web:360195e7b3bc5a38b034cf"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const HOST_KEY = '7942'; // ← 원하는 4자리로 변경 가능
@@ -129,7 +129,10 @@ window.checkKey = function(){
 
 // ── 콘솔 시작 ──
 function startConsole(){
-  onValue(ref(db,'state'), snap=>{ ST=snap.val(); if(ST) paint(); });
+  onValue(ref(db,'state'), snap=>{
+    ST = snap.val() || defaultState();
+    paint();
+  });
   onValue(ref(db,'roster'), snap=>{
     const r=snap.val()||{};
     document.getElementById('cnt').textContent=Object.keys(r).length+'명';
@@ -274,9 +277,9 @@ window.finishGame = async function(){
     const arr=Object.entries(g4Scores).map(([name,pts])=>({name,pts}));
     arr.sort((a,b)=>b.pts-a.pts);
     result={title:GN[4]+' — 최종 순위',rows:arr.map((x,i)=>({r:i+1,name:x.name,d:'총 '+x.pts+'점'})),note:'우승자를 확정해 주세요',final:true};
-  } else if(s.gameId===2){
+  } else if(s.gameId===2||s.gameId===5){
     const surv=s.survivors||[];
-    result={title:GN[2]+' — 서바이벌 결과',rows:surv.map(x=>({r:1,name:x,d:'최종 생존'})),note:'생존자 중 우승자를 확정하세요',final:true};
+    result={title:GN[s.gameId]+' — 서바이벌 결과',rows:surv.map(x=>({r:1,name:x,d:'최종 생존'})),note:surv.length===1?'🏆 최후의 1인! 이름을 눌러 우승 확정':'공동 생존자 — 이름을 눌러 우승 확정',final:true};
   }
   if(!result) return;
   await saveState({...s,status:'result',result});
@@ -393,18 +396,31 @@ function paint(){
       h+='</div>';
       if(r.note) h+='<div class="hint">'+esc(r.note)+'</div>';
 
-      // 다음 판/라운드
-      if(s.qTotal>1&&s.qIndex+1<s.qTotal&&!r.final){
-        if(s.gameId===3||s.gameId===5){
-          h+=`<div class="q-input-box" style="margin-top:12px"><label>다음 문제 입력</label>
-            <input id="qInput" placeholder="다음 문제 텍스트"></div>`;
+      const isSurvival=(s.gameId===2||s.gameId===5);
+      if(isSurvival){
+        // 서바이벌: 최후 1인이 아니면 다음 라운드 / 여기서 종료 선택
+        if(!r.final){
+          if(s.gameId===5){
+            h+=`<div class="q-input-box" style="margin-top:12px"><label>다음 문제 입력</label>
+              <input id="qInput" placeholder="다음 OX 문제 텍스트"></div>`;
+          }
+          h+=`<button class="act" onclick="openQ(true)">▶ 다음 라운드 (${s.qIndex+2})</button>`;
+          h+=`<button class="act gold" onclick="finishGame()">🏁 여기서 종료 — 생존자 시상</button>`;
         }
-        h+=`<button class="act" onclick="openQ(true)">▶ 다음 ${s.gameId===2?'라운드':'판'} (${s.qIndex+2})</button>`;
+        // r.final이면 결과 행의 이름을 탭해서 우승 확정
+      } else if(s.gameId===3||s.gameId===4){
+        // G3/G4: 3판 누적
+        if(s.qIndex+1<s.qTotal){
+          if(s.gameId===3){
+            h+=`<div class="q-input-box" style="margin-top:12px"><label>다음 문제 입력</label>
+              <input id="qInput" placeholder="다음 근사치 문제 텍스트"></div>`;
+          }
+          h+=`<button class="act" onclick="openQ(true)">▶ 다음 판 (${s.qIndex+2}/${s.qTotal})</button>`;
+        } else if(!r.final){
+          h+=`<button class="act gold" onclick="finishGame()">🏁 최종 합산 순위 발표</button>`;
+        }
       }
-      // 최종 합산
-      if((s.gameId===2||s.gameId===3||s.gameId===4)&&(s.qIndex+1>=s.qTotal||r.final)&&!r.final){
-        h+=`<button class="act gold" onclick="finishGame()">🏁 최종 합산 순위 발표</button>`;
-      }
+      // G1은 단판 — 결과 행 이름을 탭하면 바로 우승 확정
     }
     h+=`<button class="act ghost" onclick="toLobby()">게임 강제 종료 → 로비</button></div>`;
   }
