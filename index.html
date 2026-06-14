@@ -165,7 +165,7 @@ const RULES = {
   1:'주변 동료의 이름을 10명 이상 적어 주세요! 쉼표나 줄바꿈으로 구분합니다.\n먼저 접수한 순서대로 순위가 매겨집니다.',
   2:'화면의 버튼을 눌러 수석님을 이기세요!\n수석님의 가위바위보 선택을 "이긴 사람만" 생존하는 실시간 서바이벌!',
   3:'정답에 가장 가까운 숫자를 적어내세요. 총 3문제, 오차율 평균이 가장 낮은 사람이 우승합니다.',
-  4:'1~100 중 숫자 하나를 고르세요. 아무와도 겹치지 않는 가장 작은 수를 고른 순서대로 3점/2점/1점 누적 점수로 우승자를 가립니다.',
+  4:'1~100 중 숫자 하나를 고르세요. 나만 고른 숫자(단독)면 성공! 총 3판 동안 단독으로 낸 가장 낮은 숫자가 본인 최고기록이 되고, 3판 중 최고기록이 가장 낮은 사람이 우승합니다. 겹치면 기록 없음!',
   5:'O 또는 X! 틀리면 탈락, 끝까지 살아남는 한 사람이 우승합니다.\n탈락해도 예측 모드로 끝까지 함께해요.'
 };
 
@@ -342,7 +342,7 @@ function renderOpen(s){
   if(s.gameId===4){
     let g='';
     for(let i=1;i<=100;i++) g+=`<button id="n${i}" onclick="sendG4(${i})">${i}</button>`;
-    return head+q+`<div style="text-align:center;font-weight:700;color:var(--accent);font-size:13px;margin-top:8px">※ 3판 누적 랭킹 (1~100)</div>
+    return head+q+`<div style="text-align:center;font-weight:700;color:var(--accent);font-size:13px;margin-top:8px">※ 나만 고른 가장 낮은 숫자가 최고기록 (3판 진행)</div>
       <div class="grid100">${g}</div><div class="msg" id="fb"></div></div>`;
   }
   if(s.gameId===5){
