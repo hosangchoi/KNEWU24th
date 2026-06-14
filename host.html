@@ -101,7 +101,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const HOST_KEY = 'kepco1357!';
+const HOST_KEY = 'knewu24th!@호상';
 const GN = {1:'동료 이름 빨리 쓰기',2:'가위바위보 서바이벌',3:'근사치 퀴즈',4:'중복되지 않는 제일 작은 숫자 선택하기',5:'OX 서바이벌'};
 
 let ST = null, currentBossSel = '', g3Scores = {}, g4Scores = {};
@@ -144,6 +144,11 @@ function startConsole(){
     BANK={ox:b.ox||[], approx:b.approx||[]};
     paint();
   });
+  onValue(ref(db,'gameScores'), snap=>{   // 누적 기록 복구 (새로고침해도 유지)
+    const gs=snap.val()||{};
+    g3Scores = gs.g3||{};
+    g4Scores = gs.g4||{};
+  });
 }
 
 // ── 상태 기본값 ──
@@ -161,6 +166,8 @@ async function saveState(s){
 window.startG = async function(g){
   if(!confirm('G'+g+' ['+GN[g]+'] 게임을 시작할까요?')) return;
   currentBossSel=''; g3Scores={}; g4Scores={};
+  await dbSet('gameScores/g3', null);   // 누적 기록 초기화
+  await dbSet('gameScores/g4', null);
   const roster=await dbGet('roster')||{};
   const names=Object.values(roster);
   let qTotal=1;
@@ -241,6 +248,7 @@ window.closeQ = async function(){
     const arr=Object.values(subs).map(x=>({name:x.name,v:x.ans,rate:Math.abs(x.ans-truth)/Math.max(1,Math.abs(truth))}));
     arr.sort((a,b)=>a.rate-b.rate);
     arr.forEach(x=>{ g3Scores[x.name]=(g3Scores[x.name]||0)+x.rate; });
+    await dbSet('gameScores/g3', g3Scores);   // 누적 기록 저장
     result={title:'근사치 문제 '+(s.qIndex+1)+' 결과',truth:'정답: '+truth,rows:arr.map((x,i)=>({r:i+1,name:x.name,d:x.v+' · 오차 '+(x.rate*100).toFixed(1)+'%'})),note:'다음 판을 진행 후 최종 순위를 발표하세요'};
   }
   else if(s.gameId===4){
@@ -263,6 +271,7 @@ window.closeQ = async function(){
       }
       return {r:x.c===1?'✓':'·',name:x.name,d};
     });
+    await dbSet('gameScores/g4', g4Scores);   // 최고기록 저장
     result={title:'제 '+(s.qIndex+1)+'판 결과',rows,note:anyUnique?'단독으로 낸 가장 낮은 숫자가 본인 최고기록 — 3판 중 제일 낮은 기록이 우승!':'이번 판은 전원 충돌 — 단독 성공자 없음 ⚡'};
   }
   else if(s.gameId===5){
