@@ -144,7 +144,7 @@ footer{text-align:center;padding:0 0 26px;font-size:11px;color:rgba(245,242,234,
 <script type="module">
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, push, update, serverTimestamp }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB186Tg9fsrnR-K_lufo4X5iY9OVpgDeHk",
@@ -262,9 +262,9 @@ function render(){
   if(!s || (s.phase!=='game' && s.phase!=='final')){
     m.innerHTML=`<div class="waiting"><div class="big">${rosterCount}</div>
       <div class="lbl">명 입장 완료 · 잠시 후 시작합니다</div></div>
-      <div class="card"><div class="eyebrow">TONIGHT</div><h2>만찬 스페셜 게임</h2>
-      <p class="desc" style="line-height:1.8;text-align:center;font-weight:700;margin-top:12px;color:var(--accent)">🎁 각 게임마다 푸짐한 우승 상품 대기 중!</p>
-      <p class="desc" style="margin-top:12px;text-align:center">사회자 진행에 따라 화면이 automatic 전환됩니다. 스마트폰 들고 대기해 주세요!</p></div>`;
+      <div class="card"><div class="eyebrow">READY?</div><h2>실시간 이벤트 게임</h2>
+      <p class="desc" style="line-height:1.8;text-align:center;font-weight:700;margin-top:12px;color:var(--accent)">🎁 흥미진진한 미션과 특별한 선물이 기다립니다!</p>
+      <p class="desc" style="margin-top:12px;text-align:center">사회자 진행에 따라 화면이 자동으로 전환됩니다. 스마트폰을 들고 잠시만 대기해 주세요!</p></div>`;
     return;
   }
   if(s.phase==='final'){ m.innerHTML=renderFinal(s); return; }
